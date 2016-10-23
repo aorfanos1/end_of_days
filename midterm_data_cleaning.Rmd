@@ -1,0 +1,150 @@
+---
+title: "Fuel Economy Data Cleaning Report"
+author: "Alex Orfanos"
+output: pdf_document
+---
+
+
+
+```{r}
+##MIDTERM PROECT
+
+raw_data <- read.csv("vehicles.csv")
+install.packages("magrittr")
+install.packages("dplyr")
+install.packages("ggplot2")
+library(magrittr)
+library(dplyr)
+library(ggplot2)
+
+
+##Select just the variables that contain a U and the end indictaing they are unrounded information which only exists for a handfull of rows and can be considered duplicate. 
+raw_data_without_U <- raw_data %>%  select(-ends_with("U")) 
+
+##Store in the vairiable SUMS the numebr of levels of each variable, and turn it into a vector
+sums1 <- raw_data_without_U %>% lapply(FUN = 'unique') %>% lapply(FUN = 'length') %>% unlist()
+sums1[sums1 == 1] <- 0
+sums1[!sums1 == 0] <- 1
+trunk_data <- raw_data_without_U %>% select(which(sums1 == 1))
+
+####Rearrange the rows in the dataframe so that make, model, and 
+headers <- trunk_data %>% select(c(make, model, year))
+rearrange <- data.frame(c(headers, trunk_data)) %>% select(-c(make.1,model.1,year.1))
+
+##Remove the created on, modified on, and ID tables
+added_info <- rearrange %>% select(-c(createdOn, modifiedOn, id))
+
+##Changing the guzzler variable so that there arent any unnecessary factors
+#In the data set the vehicle is only subject to the gass guzzler tax if the data has a T or G
+added_info$guzzler[added_info$guzzler == 'S'] <-  NA
+added_info$guzzler[added_info$guzzler == 'T'] <-  "G"
+
+##Changing the super charger and the turbo charger columns to just be logical values
+added_info$tCharger[is.na(added_info$tCharger)] <- FALSE
+added_info$sCharger <- as.character(added_info$sCharger)
+added_info$sCharger[added_info$sCharger == ''] <- FALSE
+added_info$sCharger[added_info$sCharger == 'S'] <- TRUE
+added_info$sCharger <- as.logical(added_info$sCharger)
+
+
+##Fix the variables that have NA values coded incorrectly (as either a -1, empty string, or 0)
+added_info[added_info == -1] <- NA
+added_info[added_info == ''] <- NA
+
+#Take out the yousavespend variable which is the only col that contains true 0 values
+youSS <- added_info %>% select(youSaveSpend)
+#Run the whole dataframe without the youSaveSpend variable through a filter causing 0 == NA
+#Then reinsert the youSaveSpend variable
+final_info <- added_info %>% select(-youSaveSpend) 
+final_info[final_info == 0] <- NA
+final_info <- data.frame(final_info, youSS)
+
+##Since there are big chunks of the data that are NA, since the variables are only relevant
+#to dual fuel vehicles or even more specific types, it may be of interest to subset the data into 
+#single fuel and double fuel vehicles
+f2_index <- which(!(added_info$barrelsA08 == 0))
+double_fuel_dataframe <- slice(final_info, f2_index) 
+single_fuel_dataframe <- slice(final_info, -f2_index)
+write.csv(final_info, file = 'full_clean_dataset.csv')
+write.csv(double_fuel_dataframe, file = 'dual_clean_dataset.csv') 
+```
+
+  This set of data orinigally acquired from fueleconomy.gov contains information about 37978 different types of cars broken down by their make, model, and year manufactured. After being cleaned this data set contains 74 variables containing indentifying information, information dealing with the vehicles specifications, and data acquired from EPA and manufacturer testing. There is a considerable amount of NA information in this dataset and that is because many of the variable only refer to cars that have specific qualities. 
+  
+Some basic data summary information
+```{r}
+info <- c(nlevels(final_info$make), nlevels(final_info$model))
+names(info) <- c("NUMBER OF DIFFERENT MAKES", "NUMBER OF DIFFERENT MODELS")
+info
+"Range of Years:"
+range(final_info$year)
+```
+
+Exposition of variables:
+The first thing necessary to be aware of when dealing with this dataset is that there are two main classifications for most of the metrics being dealt with. All of these cars can be classified as either being single fuel cars, meaning that they run off only their primary fuel, or double fuel cars, meaning that they have a primary fuel and a secondary fuel. Many variables have two copies which reflect this distinction. The easiest way to tell which class the variable is talking about is the primary variable will have some uniqe name, and the secondary variable will have that name with an 'A' inserted somewhere toward the end of the name. The former will be a metric relating to the car when running off fuel type 1, and the latter will be a metric relating to when the car is running off fuel type 2. The fuels that each car run off are stored in the fuelType1 and fuelType2, for primary and secondary fuel respectively. 
+```{r}
+fueltypes <- c(nrow(double_fuel_dataframe), nrow(single_fuel_dataframe))
+names(fueltypes) <- c("Number of double fuel vehicles", "Number of single fuel vehicles")
+fueltypes
+```
+
+The 'barrels' variable referrs to the annual consumption of petroleum in barrels for each fuel type. (In the rest of this report all summary statistics will be taken using the fuelType1 version of the variable unless otherwise noted)
+```{r, echo= FALSE}
+barrels <- summary(final_info$barrels08)
+barrels
+```
+
+The 'city' variable referrs to the MPG for a vehicle while driving in the city.
+The CD class reffers to gass consumption in gal/100 mi in charge depleting mode (only for plug-in hybrid cars)
+The E class is the amount of electricity consumption in kw-hrs/100 mi
+The UF class referrs to the EPA city utility factor (a designation for hybrid
+vehicles)
+The UCity variable refers to the "unadjusted" values for MPG that the EPA gets from their testing. These values are less indicitive of real driving and more specific to their tests. 
+City summary:
+```{r, echo = F}
+summary(final_info$city08)
+```
+
+The 'highway' is the same spirit as 'city' except it reffers to highway driving. 
+The 'combo' variable is the combined city and highway mpg (taken 55/45).
+The 'displ' variable is the engine displacement in liters.
+Any variables that contain an ID, a score, or a description have information that comes from either the EPA or the car manufacturer. 
+
+The fuelCost variable indicates how much fuel for this car costs over 1 year based on 15,000 miles of driving. 
+A description of fuel costs for each of these cars is:
+```{r}
+ggplot(data=final_info, aes(final_info$fuelCost08)) + geom_histogram(binwidth = 50) + labs(title = "Fuel Cost Over fuelType1") + labs(x = "Cost in dollars")
+```
+
+A variable with 'lv' or 'pv' indicated luggage volume or passenger volume in cubic feet. If there is an h present it indicates the car is a hatchback, and a number indicated the number of doors. 
+A summary of 4 door luggage volume stats are as follows:
+```{r, echo = F}
+lv4 <- summary(final_info$lv4)
+lv4
+```
+
+The range variables indicate the EPA estimated range of the vehicle on whichever fuel is specified by the variable name.
+
+Trany is what kind of transmission the car contains, while
+trans_dscr is the government code describing further the transmission specifications.
+Some examples of what you will find in the tranny variable is as follows:
+```{r}
+tail(levels(final_info$trany))
+```
+The guzzler variable indictates whether or not the car is subject to a gass guzzler tax. 
+
+Charge240 indicates the amount of time to charge an electric vehicle in hrs. If there is a 'b' in the variable name it indicates use of the alternate charger.
+
+startStop indicates whether or not the car will cause the engine to shut down while idling to reduce emissions. 
+
+Variables that begin with phev are specific to plug in hybrid vehicles
+
+The youSaveSpend variable is a number that idicates how much money an owner of this car will save/spend over 5 years on primary fuel, or gassoline for dual fuel vehicles compared to an average car. Savings are positive and extra spending is negative. 
+youSaveSpend summmary Information:
+
+```{r}
+summary(final_info$youSaveSpend)
+ggplot(data = final_info, aes(final_info$youSaveSpend)) + geom_histogram(bins = 50) + labs(x = 'Amount Saved/Spent in dollars') + labs(title = "youSaveSpend Histogram")
+```
+
+After running this code there will be two dataframes saved into your working directory. The first is a dataframe containing all information for all cars. The second is a subset of this data containing only the information for dual fuel cars, since there are many variables in this dataset which are only applicable to dual fuel cars. 
