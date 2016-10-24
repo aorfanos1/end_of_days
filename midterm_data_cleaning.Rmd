@@ -1,7 +1,7 @@
 ---
 title: "Fuel Economy Data Cleaning Report"
 author: "Alex Orfanos"
-output: pdf_document
+output: html_document
 ---
 
 
@@ -33,30 +33,48 @@ headers <- trunk_data %>% select(c(make, model, year))
 rearrange <- data.frame(c(headers, trunk_data)) %>% select(-c(make.1,model.1,year.1))
 
 ##Remove the created on, modified on, and ID tables
-added_info <- rearrange %>% select(-c(createdOn, modifiedOn, id))
+added_info <- rearrange %>% select(-c(createdOn, modifiedOn, id, co2, co2A))
 
 ##Changing the guzzler variable so that there arent any unnecessary factors
 #In the data set the vehicle is only subject to the gass guzzler tax if the data has a T or G
-added_info$guzzler[added_info$guzzler == 'S'] <-  NA
-added_info$guzzler[added_info$guzzler == 'T'] <-  "G"
+added_info$guzzler <- as.character(added_info$guzzler)
+added_info$guzzler[added_info$guzzler == '' | added_info$guzzler == 'S'] <- FALSE
+added_info$guzzler[added_info$guzzler == 'G' | added_info$guzzler == 'T'] <- TRUE
+added_info$guzzler <- as.logical(added_info$guzzler)
 
-##Changing the super charger and the turbo charger columns to just be logical values
-added_info$tCharger[is.na(added_info$tCharger)] <- FALSE
+##Changing the mpgData to a logcal variable with Y as true and N as false
+added_info$mpgData <- as.character(added_info$mpgData)
+added_info$mpgData[added_info$mpgData == 'N'] <- FALSE
+added_info$mpgData[added_info$mpgData == 'Y'] <- TRUE
+added_info$mpgData <- as.logical(added_info$mpgData)
+
+##Changing the super charger and the turbo charger columns to just be logical values indicating whether a car is super charged or turbo charged
 added_info$sCharger <- as.character(added_info$sCharger)
 added_info$sCharger[added_info$sCharger == ''] <- FALSE
 added_info$sCharger[added_info$sCharger == 'S'] <- TRUE
 added_info$sCharger <- as.logical(added_info$sCharger)
+added_info$tCharger <- as.character(added_info$tCharger)
+added_info$tCharger[which(is.na(added_info$tCharger))] <- FALSE
+added_info$tCharger <- as.logical(added_info$tCharger)
 
+##Fixing the all the values of startStop to be either True or false depending on if car has start stop technology
+added_info$startStop <- as.character(added_info$startStop)
+added_info$startStop[added_info$startStop == '' | added_info$startStop == 'N'] <- FALSE
+added_info$startStop[added_info$startStop == 'Y'] <- TRUE
+added_info$startStop <- as.logical(added_info$startStop)
+
+##Changing the phevBlended variable back to a logical variable
+added_info$phevBlended <- as.logical(added_info$phevBlended)
 
 ##Fix the variables that have NA values coded incorrectly (as either a -1, empty string, or 0)
 added_info[added_info == -1] <- NA
 added_info[added_info == ''] <- NA
 
-#Take out the yousavespend variable which is the only col that contains true 0 values
-youSS <- added_info %>% select(youSaveSpend)
+#Take out the yousavespend variable and the variables with logical values which is the only col that contains true 0 values
+youSS <- added_info %>% select(youSaveSpend, guzzler, tCharger, sCharger, startStop,phevBlended, mpgData)
 #Run the whole dataframe without the youSaveSpend variable through a filter causing 0 == NA
 #Then reinsert the youSaveSpend variable
-final_info <- added_info %>% select(-youSaveSpend) 
+final_info <- added_info %>% select(-c(youSaveSpend, guzzler, tCharger, sCharger, startStop,phevBlended, mpgData)) 
 final_info[final_info == 0] <- NA
 final_info <- data.frame(final_info, youSS)
 
