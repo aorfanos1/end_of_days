@@ -5,18 +5,19 @@ output: pdf_document
 ---
 
 
-
 ```{r}
-##MIDTERM PROECT
-
-raw_data <- read.csv("vehicles.csv")
-install.packages("magrittr")
-install.packages("dplyr")
-install.packages("ggplot2")
+# install.packages("magrittr")
+# install.packages("dplyr")
+# install.packages("ggplot2")
+# install.packages("ggvis")
 library(magrittr)
 library(dplyr)
 library(ggplot2)
+library(ggvis)
+```
 
+```{r}
+raw_data <- read.csv("vehicles.csv")
 
 ##Select just the variables that contain a U and the end indictaing they are unrounded information which only exists for a handfull of rows and can be considered duplicate. 
 raw_data_without_U <- raw_data %>%  select(-ends_with("U")) 
@@ -80,71 +81,76 @@ info
 range(final_info$year)
 ```
 
-Exposition of variables:
-The first thing necessary to be aware of when dealing with this dataset is that there are two main classifications for most of the metrics being dealt with. All of these cars can be classified as either being single fuel cars, meaning that they run off only their primary fuel, or double fuel cars, meaning that they have a primary fuel and a secondary fuel. Many variables have two copies which reflect this distinction. The easiest way to tell which class the variable is talking about is the primary variable will have some uniqe name, and the secondary variable will have that name with an 'A' inserted somewhere toward the end of the name. The former will be a metric relating to the car when running off fuel type 1, and the latter will be a metric relating to when the car is running off fuel type 2. The fuels that each car run off are stored in the fuelType1 and fuelType2, for primary and secondary fuel respectively. 
+__Exposition of variables:__
+The first thing necessary to be aware of when dealing with this dataset is that there are two main classifications for most of the metrics being dealt with. All of these cars can be classified as either being single fuel cars, meaning that they run off only their primary fuel, or double fuel cars, meaning that they have a primary fuel and a secondary fuel. Many variables have two copies which reflect this distinction. The easiest way to tell which class the variable is talking about is the primary variable will have some uniqe name, and the secondary variable will have that name with an __A__ inserted somewhere toward the end of the name. The former will be a metric relating to the car when running off __fueltype1__, and the latter will be a metric relating to when the car is running off __fueltype2__. The fuels that each car run off are stored in the fuelType1 and fuelType2, for primary and secondary fuel respectively. 
 ```{r}
 fueltypes <- c(nrow(double_fuel_dataframe), nrow(single_fuel_dataframe))
 names(fueltypes) <- c("Number of double fuel vehicles", "Number of single fuel vehicles")
 fueltypes
 ```
 
-The 'barrels' variable referrs to the annual consumption of petroleum in barrels for each fuel type. (In the rest of this report all summary statistics will be taken using the fuelType1 version of the variable unless otherwise noted)
+The __barrels__ variable referrs to the annual consumption of petroleum in barrels for each fuel type. (In the rest of this report all summary statistics will be taken using the fuelType1 version of the variable unless otherwise noted)
 ```{r, echo= FALSE}
 barrels <- summary(final_info$barrels08)
 barrels
 ```
 
-The 'city' variable referrs to the MPG for a vehicle while driving in the city.
+The __city__ variable referrs to the MPG for a vehicle while driving in the city.
 The CD class reffers to gass consumption in gal/100 mi in charge depleting mode (only for plug-in hybrid cars)
 The E class is the amount of electricity consumption in kw-hrs/100 mi
 The UF class referrs to the EPA city utility factor (a designation for hybrid
 vehicles)
-The UCity variable refers to the "unadjusted" values for MPG that the EPA gets from their testing. These values are less indicitive of real driving and more specific to their tests. 
+The __UCity__ variable refers to the "unadjusted" values for MPG that the EPA gets from their testing. These values are less indicitive of real driving and more specific to their tests. 
 City summary:
 ```{r, echo = F}
 summary(final_info$city08)
 ```
 
-The 'highway' is the same spirit as 'city' except it reffers to highway driving. 
-The 'combo' variable is the combined city and highway mpg (taken 55/45).
-The 'displ' variable is the engine displacement in liters.
-Any variables that contain an ID, a score, or a description have information that comes from either the EPA or the car manufacturer. 
+The __highway__ is the same spirit as _city_ except it reffers to highway driving. 
+The __combo__ variable is the combined _city_ and highway mpg (taken 55/45).
+The __displ__ variable is the engine displacement in liters.
+Any variables that contain an _ID_, a _score_, or a description (_dscr_) have information that comes from either the EPA or the car manufacturer. 
 
-The fuelCost variable indicates how much fuel for this car costs over 1 year based on 15,000 miles of driving. 
+The __fuelCost__ variable indicates how much fuel for this car costs over 1 year based on 15,000 miles of driving. 
 A description of fuel costs for each of these cars is:
 ```{r}
 ggplot(data=final_info, aes(final_info$fuelCost08)) + geom_histogram(binwidth = 50) + labs(title = "Fuel Cost Over fuelType1") + labs(x = "Cost in dollars")
 ```
 
-A variable with 'lv' or 'pv' indicated luggage volume or passenger volume in cubic feet. If there is an h present it indicates the car is a hatchback, and a number indicated the number of doors. 
+A variable with __lv__ or __pv__ indicated luggage volume or passenger volume in cubic feet. If there is an __h__ present it indicates the car is a hatchback, and a number indicated the number of doors. 
 A summary of 4 door luggage volume stats are as follows:
 ```{r, echo = F}
 lv4 <- summary(final_info$lv4)
 lv4
 ```
 
-The range variables indicate the EPA estimated range of the vehicle on whichever fuel is specified by the variable name.
+The __range__ variables indicate the EPA estimated range of the vehicle on whichever fuel is specified by the variable name.
 
-Trany is what kind of transmission the car contains, while
-trans_dscr is the government code describing further the transmission specifications.
+__Trany__ is what kind of transmission the car contains, while
+__trans_dscr__ is the government code describing further the transmission specifications.
 Some examples of what you will find in the tranny variable is as follows:
 ```{r}
 tail(levels(final_info$trany))
 ```
-The guzzler variable indictates whether or not the car is subject to a gass guzzler tax. 
+The __guzzler__ variable indictates whether or not the car is subject to a gass guzzler tax. 
 
-Charge240 indicates the amount of time to charge an electric vehicle in hrs. If there is a 'b' in the variable name it indicates use of the alternate charger.
+__Charge240__ indicates the amount of time to charge an electric vehicle in hrs. If there is a _b_ in the variable name it indicates use of the alternate charger.
 
-startStop indicates whether or not the car will cause the engine to shut down while idling to reduce emissions. 
+__startStop__ indicates whether or not the car will cause the engine to shut down while idling to reduce emissions. 
 
-Variables that begin with phev are specific to plug in hybrid vehicles
+Variables that begin with __phev__ are specific to plug in hybrid vehicles
 
-The youSaveSpend variable is a number that idicates how much money an owner of this car will save/spend over 5 years on primary fuel, or gassoline for dual fuel vehicles compared to an average car. Savings are positive and extra spending is negative. 
+The __youSaveSpend__ variable is a number that idicates how much money an owner of this car will save/spend over 5 years on primary fuel, or gassoline for dual fuel vehicles compared to an average car. Savings are positive and extra spending is negative. 
 youSaveSpend summmary Information:
 
 ```{r}
 summary(final_info$youSaveSpend)
 ggplot(data = final_info, aes(final_info$youSaveSpend)) + geom_histogram(bins = 50) + labs(x = 'Amount Saved/Spent in dollars') + labs(title = "youSaveSpend Histogram")
+
+final_info %>% ggvis(~comb08, ~youSaveSpend) %>% 
+  layer_points(shape = ~fuelType1, stroke = ~fuelType1) %>% 
+  add_axis('x', title = 'combo8') %>% 
+  add_axis("x", orient = 'top', title = 'Example Investigation of Combined MPG vs Fuel Savings',properties = axis_props(axis = list(stroke = "white"),labels = list(fontSize = 0)))
 ```
 
 After running this code there will be two dataframes saved into your working directory. The first is a dataframe containing all information for all cars. The second is a subset of this data containing only the information for dual fuel cars, since there are many variables in this dataset which are only applicable to dual fuel cars. 
